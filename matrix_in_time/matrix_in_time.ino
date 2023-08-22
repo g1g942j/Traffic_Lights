@@ -43,7 +43,7 @@ void loop() {
     Serial.println(duration);
   }
   last_state = state;
-  state = map((millis() - start_time), 0, duration, 8 * 255, 2* 8 * 255);
+  state = map((millis() - start_time), 0, duration, 8 * 255, 2 * 8 * 255);
   if ((millis() - start_time) < duration && last_state != state) {
     draw();
   } else {
