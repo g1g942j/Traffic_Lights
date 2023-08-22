@@ -13,7 +13,7 @@ UniorBLEModule emg1("D0:44:97:62:C3:6A");
 EMG_Raw_Processing emg1_int;
 CRGB leds[NUM_LEDS];
 
-int start_time, fill_start_time, state, last_state, fill_state, fill_last_state, i, saturation, data_count, current_state, second_count, minute_count, hour_count;
+int start_time, fill_start_time, state, last_state, fill_state, fill_last_state, i, saturation, data_count, current_state;
 int animation_step = 100;  // 50-125; Необходимо играться со значением, для определения плавной анимации.
 int calibration_time = 5000;
 int duration = 10000;
@@ -37,13 +37,6 @@ void get_data() {
     if (emg1_int.process(emg1_value, emg1_int_value)) {
     }
   }
-  if (Serial.available()) {
-    duration = Serial.readString().toInt();
-    start_time = millis();
-    Serial.println(duration);
-  }
-  // Serial.print("NEW ");
-  // Serial.println(emg1_int_value);  // Закоментировать.
 }
 
 void animation() {
@@ -55,7 +48,7 @@ void animation() {
     data = data_count = 0;
     animation_doing = true;
   }
-  // Большую часть времени программа проведёт здесь, для оптимизации лучше избавиться от while.
+
   if ((millis() - start_time) < animation_step) {
     get_data();
     data += emg1_int_value;
@@ -70,8 +63,6 @@ void animation() {
   } else {
     animation_doing = false;
   }
-  // Serial.print("Animation is end. ");
-  // Serial.println(data / data_count);
 }
 
 void draw(int draw_state) {
@@ -81,7 +72,7 @@ void draw(int draw_state) {
         leds[reverse(i)] = CHSV(0, saturation, 255);
       }
       if (i == (draw_state / 255)) {
-        leds[reverse(i)] = CHSV(0, saturation, state % 255);
+        leds[reverse(i)] = CHSV(0, saturation, draw_state % 255);
       }
       if (i > (draw_state / 255)) {
         leds[reverse(i)] = CHSV(0, saturation, 0);
@@ -94,7 +85,7 @@ void draw(int draw_state) {
         leds[reverse(i)] = CHSV(0, saturation, 255);
       }
       if (i == (draw_state / 255)) {
-        leds[reverse(i)] = CHSV(0, saturation, state % 255);
+        leds[reverse(i)] = CHSV(0, saturation, draw_state % 255);
       }
       if (i > (draw_state / 255)) {
         leds[reverse(i)] = CHSV(0, saturation, 0);
@@ -105,7 +96,7 @@ void draw(int draw_state) {
 }
 
 void calibration() {
-  // Нет других действий, поэтому можно использовать while.
+  // Так ка программа выполняется один раз и нет других действий - используется while.
   while ((millis() - start_time) < calibration_time) {
     get_data();
     if (emg_max < emg1_int_value) {
@@ -118,12 +109,10 @@ void calibration() {
     mode = true;  // Если calibration() будет использоваться ещё в программе, для верного построения.
     draw(current_state);
   }
-  // Serial.print("Calibration result:");
-  // Serial.print(emg_min);
-  // //Serial.print(map(emg1_int_value, emg_min, emg_max, 0, NUM_LEDS * 255));
-  // Serial.print(" ");
-  // Serial.println(emg_max);
-  // // Serial.println(map(emg1_int_value, emg_min, emg_max, 0, NUM_LEDS * 255));
+  Serial.print("Calibration result:");
+  Serial.print(emg_min);
+  Serial.print(" ");
+  Serial.println(emg_max);
 }
 
 void fill() {
@@ -134,27 +123,12 @@ void fill() {
     fill_doing = true;
   }
   fill_last_state = fill_state;
-  fill_state = map((millis() - fill_start_time), 0, duration, 0, 8 * 255);
+  fill_state = map((millis() - fill_start_time), 0, duration, 8 * 255, 2 * 8 * 255);
   if ((millis() - start_time) < duration && last_state != state) {
     draw(fill_state);
   }
   if ((millis() - start_time) >= duration) {
     fill_doing = false;
-  }
-}
-
-void timer() {
-  if ((millis() - start_time) >= 1000) {
-    second_count++;
-    start_time = millis();
-  }
-  if (second_count >= 60) {
-    second_count -= 60;
-    minute_count++;
-  }
-  if (minute_count >= 60) {
-    minute_count -= 60;
-    hour_count++;
   }
 }
 
@@ -181,7 +155,6 @@ void loop() {
   //   emg1.start();
   // }
   get_data();
-  timer();
   fill();
   animation();
 }
