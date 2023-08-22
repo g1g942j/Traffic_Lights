@@ -1,7 +1,7 @@
 #include <FastLED.h>
 
 #define LED_PIN 12
-#define NUM_LEDS 16
+#define NUM_LEDS 8
 #define BRIGHTNESS 32
 #define LED_TYPE WS2812
 
@@ -43,7 +43,7 @@ void loop() {
     Serial.println(duration);
   }
   last_state = state;
-  state = map((millis() - start_time), 0, duration, 8 * 255, 2 * 8 * 255);
+  state = map((millis() - start_time), 0, duration, 0, 8 * 255);
   if ((millis() - start_time) < duration && last_state != state) {
     draw();
   } else {
