@@ -4,21 +4,21 @@
 #include <FastLED.h>
 
 #define LED_PIN 12
-#define NUM_LEDS 64
+#define NUM_LEDS 8
 #define BRIGHTNESS 32
 #define LED_TYPE WS2812
 
-UniorBLEModule emg1("E2:B6:A6:B2:39:50");
+UniorBLEModule emg1("D7:C9:C8:AE:99:C1");
 
 EMG_Raw_Processing emg1_int;
 CRGB leds[NUM_LEDS];
 
-int start_time, state, time_draw, last_state, i, data_count;
-int animation_step = 500;
+int start_time, state, last_state, i, saturation, data_count, current_state;
+int animation_step = 100; // 50-125; Необходимо играться со значением, для определения плавной анимации.
+int calibration_time = 5000;
 float emg1_value, emg1_int_value, data;
-float emg_min = 99999999999999999999999;
-float emg_max = 0;
-bool animation_doing = false;
+float emg_min = 999999999999;
+float emg_max = -1;
 
 int reverse(int r) {
   if ((r / 8) % 2 == 0) {
@@ -28,46 +28,65 @@ int reverse(int r) {
   return r;
 }
 
-void draw() {
-  for (i = 0; i <= NUM_LEDS - 1; i++) {
-    if (emg1.read(emg1_value)) {
-      if (emg1_int.process(emg1_value, emg1_int_value)) {
-        data += emg1_int_value;
-        data_count++;
-      }
-    }
-    if (i < (state / 255)) {
-      leds[reverse(i)] = CHSV(0, 0, 255);
-    }
-    if (i == (state / 255)) {
-      leds[reverse(i)] = CHSV(0, 0, state % 255);
-    }
-    if (i > (state / 255)) {
-      leds[reverse(i)] = CHSV(0, 0, 0);
+void get_data() {
+  if (emg1.read(emg1_value)) {
+    if (emg1_int.process(emg1_value, emg1_int_value)) {
     }
   }
 }
 
-void calibration() {
-  while ((millis() - start_time) < 5000) {
-    if (emg1.read(emg1_value)) {
-      if (emg1_int.process(emg1_value, emg1_int_value)) {
-      }
+void animation() {
+  // Большую часть времени программа проведёт здесь, для оптимизации лучше избавиться от while.
+  while ((millis() - start_time) < animation_step) {
+    get_data();
+    data += emg1_int_value;
+    data_count++;
+
+    last_state = current_state;
+    current_state = map((millis() - start_time), 0, animation_step, last_state, state);
+
+    if (last_state != state) {
+      draw();
     }
+  }
+  Serial.print("Animation is end. ");
+  Serial.println(data / data_count);
+}
+
+void draw() {
+  for (i = 0; i <= NUM_LEDS - 1; i++) {
+    if (i < (current_state / 255)) {
+      leds[reverse(i)] = CHSV(0, saturation, 255);
+    }
+    if (i == (current_state / 255)) {
+      leds[reverse(i)] = CHSV(0, saturation, state % 255);
+    }
+    if (i > (current_state / 255)) {
+      leds[reverse(i)] = CHSV(0, saturation, 0);
+    }
+  }
+  FastLED.show();
+}
+
+void calibration() {
+  // Нет других действий, поэтому можно использовать while.
+  while ((millis() - start_time) < calibration_time) {
+    get_data();
     if (emg_max < emg1_int_value) {
       emg_max = emg1_int_value;
     }
     if (emg_min > emg1_int_value) {
       emg_min = emg1_int_value;
     }
-    leds[0] = CHSV(0, 255, 128);
-    FastLED.show();
+    current_state = map((millis() - start_time), 0, calibration_time, 0, NUM_LEDS * 255);
+    draw();
   }
-  //Serial.print(emg_min);
-  Serial.print(map(emg1_int_value, emg_min, emg_max, 0, 8 * 255));
+  Serial.print("Calibration result:");
+  Serial.print(emg_min);
+  //Serial.print(map(emg1_int_value, emg_min, emg_max, 0, NUM_LEDS * 255));
   Serial.print(" ");
-  //Serial.println(emg_max);
-  Serial.print(map(emg1_int_value, emg_min, emg_max, 0, 8 * 255));
+  Serial.println(emg_max);
+ // Serial.println(map(emg1_int_value, emg_min, emg_max, 0, NUM_LEDS * 255));
 }
 
 void setup() {
@@ -82,26 +101,18 @@ void setup() {
   if (emg1.connected()) {
     emg1.start();
     start_time = millis();
+    saturation = 255;
     calibration();
-  } else {
+    saturation = 0;
   }
 }
 
 void loop() {
-  if (emg1.read(emg1_value)) {
-    if (emg1_int.process(emg1_value, emg1_int_value)) {
-      if((millis()- start_time) > animation_step){
-        animation_doing = false;
-      }
-      if (animation_doing == false) {
-        start_time = millis();
-        last_state = state;
-        state = map(emg1_int_value, emg_min, emg_max, 0, NUM_LEDS * 255);
-        animation_doing = true;
-      }
-      time_draw = map((millis() - start_time), 0, animation_step, 0, state);
-      draw();
-      FastLED.show();
-    }
-  }
+  get_data();
+  Serial.print("NEW ");
+  Serial.println(emg1_int_value);  // Закоментировать.
+  start_time = millis();
+  state = map(data / data_count, emg_min, emg_max, 0, NUM_LEDS * 255);
+  data = data_count = 0;
+  animation();
 }
