@@ -17,7 +17,7 @@ EMG_Raw_Processing emg2_int;
 CRGB leds[NUM_LEDS];
 
 int start_time, fill_start_time, state, last_state, fill_state, fill_last_state, i, j, hue, saturation;
-int data_count_1, data_count_2 current_state, timer_start_time, second_count, zero_index, goal, last_check_position;
+int data_count_1, data_count_2 current_state, timer_first_player_start_time, timer_second_player_start_time, second_count, zero_index, goal, last_check_position;
 int animation_step = 100;
 int goal_time = 3;
 int calibration_time = 5 * 1000;
@@ -30,9 +30,11 @@ bool animation_doing = false;
 bool fill_doing = false;
 bool check_state = false;
 bool player_id = false;
+bool first_player_win = false;
 
 int goal_color[3]{ 0, 60, 100 };
-int smile[14]{ 13, 17, 18, 19, 20, 22, 30, 38, 41, 42, 43, 44, 46, 53 };
+int first[10]{ 18, 25, 32, 33, 34, 35, 36, 37, 38, 39 };
+int second[16]{ 14, 17, 18, 21, 22, 24, 28, 30, 32, 35, 38, 40, 42, 46, 49, 54 };
 
 int reverse(int r) {
   if ((r / 8) % 2 == 0) {
@@ -66,6 +68,7 @@ void calibration() {
     current_state = map((millis() - start_time), 0, calibration_time, 0, 8 * 255);
     zero_index = 0;  // Если calibration() будет использоваться ещё в программе, для верного построения.
     draw(current_state);
+    FastLED.show();
   }
   Serial.print("Calibration result:");
   Serial.print(emg_min);
@@ -85,11 +88,14 @@ void draw(int draw_state) {
       leds[reverse(i)] = CHSV(hue, saturation, 0);
     }
   }
-  FastLED.show();
 }
 
-void fill() {
-  zero_index = 8;
+void fill(bool fill_doing, int fill_last_state, int fill_state, int fill_start_time, int last_check_position, int check_position) {
+  if (player_id == false) {
+    zero_index = 16;
+  } else {
+    zero_index = 40;
+  }
   saturation = 0;
   if (fill_doing == false) {
     fill_start_time = millis();
@@ -133,15 +139,28 @@ void animation() {
 }
 
 void scale() {
-  zero_index = 40;
+  zero_index = 24;
   for (i = zero_index; i <= zero_index + 7; i++) {
-    if ((i - 39) * emg_max / 8 <= (emg_min + (emg_max - emg_min) / 3)) {  // Зелёный
+    if ((i - zero_index + 1) * emg1_max / 8 <= (emg1_min + (emg1_max - emg1_min) / 3)) {  // Зелёный
       hue = 100;
     }
-    if ((i - 39) * emg_max / 8 >= (emg_min + (emg_max - emg_min) / 3) && (i - 39) * emg_max / 8 <= (emg_min + 2 * (emg_max - emg_min) / 3)) {  // Жёлтый
+    if ((i - zero_index + 1) * emg1_max / 8 >= (emg1_min + (emg1_max - emg1_min) / 3) && (i - 39) * emg1_max / 8 <= (emg1_min + 2 * (emg1_max - emg1_min) / 3)) {  // Жёлтый
       hue = 60;
     }
-    if ((i - 39) * emg_max / 8 >= (emg_min + 2 * (emg_max - emg_min) / 3)) {  // Красный
+    if ((i - zero_index + 1) * emg1_max / 8 >= (emg1_min + 2 * (emg1_max - emg1_min) / 3)) {  // Красный
+      hue = 0;
+    }
+    leds[reverse(i)] = CHSV(hue, 255, 128);
+  }
+  zero_index = 32;
+  for (i = zero_index; i <= zero_index + 7; i++) {
+    if ((i - zero_index + 1) * emg2_max / 8 <= (emg2_min + (emg2_max - emg2_min) / 3)) {  // Зелёный
+      hue = 100;
+    }
+    if ((i - zero_index + 1) * emg2_max / 8 >= (emg2_min + (emg2_max - emg2_min) / 3) && (i - 39) * emg2_max / 8 <= (emg2_min + 2 * (emg2_max - emg2_min) / 3)) {  // Жёлтый
+      hue = 60;
+    }
+    if ((i - zero_index + 1) * emg2_max / 8 >= (emg2_min + 2 * (emg2_max - emg2_min) / 3)) {  // Красный
       hue = 0;
     }
     leds[reverse(i)] = CHSV(hue, 255, 128);
@@ -196,7 +215,7 @@ void check() {
   }
 }
 
-void timer() {
+void timer(int timer_start_time, int second_count) {
   if ((millis() - timer_start_time) >= 1000) {
     second_count++;
     timer_start_time += 1000;
@@ -211,16 +230,30 @@ void timer() {
   }
 }
 
-void get_reward() {
+void check_win() {
   saturation = 255;
-  hue = 60;
-  for (i = 0; i <= 63; i++) {
-    for (j = 0; j <= 13; j++) {
-      if (i == smile[j]) {
-        leds[reverse(i)] = CHSV(60, 255, 128);
-        break;
-      } else {
-        leds[reverse(i)] = CHSV(0, 0, 0);
+  if (first_player_win == true) {
+    hue = 60;
+    for (i = 0; i <= 63; i++) {
+      for (j = 0; j <= size(first); j++) {
+        if (i == first[j]) {
+          leds[reverse(i)] = CHSV(hue, 255, 128);
+          break;
+        } else {
+          leds[reverse(i)] = CHSV(0, 0, 0);
+        }
+      }
+    }
+  } else {
+    hue = 152;
+    for (i = 0; i <= 63; i++) {
+      for (j = 0; j <= size(second); j++) {
+        if (i == second[j]) {
+          leds[reverse(i)] = CHSV(hue, 255, 128);
+          break;
+        } else {
+          leds[reverse(i)] = CHSV(0, 0, 0);
+        }
       }
     }
   }
@@ -265,5 +298,6 @@ void loop() {
   timer();
   one_step();
   one_step();
+  FastLED.show();
   check_win();
 }
