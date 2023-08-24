@@ -79,7 +79,7 @@ void calibration() {
     zero_index = 0;
     draw(first_player_current_state, hue_1);
     zero_index = 56;
-    second_player_current_state = map((millis() - calibration_start_time), 0, calibration_time, 56 * 255, 64 * 255);
+    second_player_current_state = map((millis() - calibration_start_time), 0, calibration_time, 0, 8 * 255);
     draw(second_player_current_state, hue_2);
     FastLED.show();
   }
@@ -95,17 +95,17 @@ void calibration() {
 
 void draw(int draw_state, int hue) {
   for (i = zero_index; i <= zero_index + 7; i++) {
-    if (i < (draw_state / 255)) {
+    if (i - zero_index < (draw_state / 255)) {
       leds[reverse(i)] = CHSV(hue, saturation, 255);
     }
-    if (i == (draw_state / 255)) {
+    if (i - zero_index == (draw_state / 255)) {
       leds[reverse(i)] = CHSV(hue, saturation, draw_state % 255);
     }
-    if (i > (draw_state / 255)) {
+    if (i - zero_index > (draw_state / 255)) {
       leds[reverse(i)] = CHSV(hue, saturation, 0);
     }
   }
-  FastLED.show();
+  // FastLED.show();
 }
 
 void fill() {
@@ -120,7 +120,7 @@ void fill() {
   }
 
   first_player_fill_last_state = first_player_fill_state;
-  first_player_fill_state = map((millis() - fill_first_player_start_time), 0, duration, 8 * 255, 16 * 255);
+  first_player_fill_state = map((millis() - fill_first_player_start_time), 0, duration, 0, 8 * 255);
   if ((millis() - timer_first_player_start_time) >= duration) {
     first_player_win = true;
     get_win = true;
@@ -130,7 +130,7 @@ void fill() {
     draw(first_player_fill_state, hue_1);
   }
   second_player_fill_last_state = second_player_fill_state;
-  second_player_fill_state = map((millis() - fill_second_player_start_time), 0, duration, 48 * 255, 56 * 255);
+  second_player_fill_state = map((millis() - fill_second_player_start_time), 0, duration, 0, 8 * 255);
   if ((millis() - timer_second_player_start_time) >= duration) {
     first_player_win = false;
     get_win = true;
@@ -160,7 +160,7 @@ void animation() {
   }
   if (second_player_animation_doing == false) {
     second_player_start_time = millis();
-    second_player_state = map(sum_data_2 / data_count_2, emg2_min, emg2_max, 56 * 255, 64 * 255);
+    second_player_state = map(sum_data_2 / data_count_2, emg2_min, emg2_max, 0, 8 * 255);
     sum_data_2 = 0;
     data_count_2 = 0;
     second_player_animation_doing = true;
@@ -178,20 +178,21 @@ void animation() {
     second_player_last_state = second_player_current_state;
     second_player_current_state = map((millis() - second_player_start_time), 0, animation_step, second_player_last_state, second_player_state);
 
-    if (first_player_last_state != first_player_state) {
+    // if (first_player_last_state != first_player_state) {
       zero_index = 0;
-      Serial.println("FIRST PLAYER.");
+      // Serial.print("FIRST PLAYER.");
+      // Serial.println(first_player_current_state);
       draw(first_player_current_state, hue_1);
-    } else {
-      first_player_animation_doing = false;
-    }
-    if (second_player_last_state != second_player_state) {
-      zero_index = 55;
-      Serial.println("SECOND PLAYER.");
+    // } else {
+    //   first_player_animation_doing = false;
+    // }
+    // if (second_player_last_state != second_player_state) {
+      zero_index = 56;
+      // Serial.println("SECOND PLAYER.");
       draw(second_player_current_state, hue_2);
-    } else {
-      second_player_animation_doing = false;
-    }
+    // } else {
+    //   second_player_animation_doing = false;
+    // }
   }
 }
 
@@ -199,14 +200,14 @@ void check() {
   saturation = 255;
   check_win();
 
-  if (first_player_second_count < goal_time) {
-    zero_index = 0;
-    draw(0, 0);
-  }
-  if (second_player_second_count < goal_time) {
-    zero_index = 56;
-    draw(0, 0);  // Возможно здесь ошибка!
-  }
+  // if (first_player_second_count < goal_time) {
+  //   zero_index = 0;
+  //   draw(0, 0);
+  // }
+  // if (second_player_second_count < goal_time) {
+  //   zero_index = 56;
+  //   draw(0, 0);  // Возможно здесь ошибка!
+  // }
 
   last_check_first_player_position = first_player_check_position;
   last_check_second_player_position = second_player_check_position;
@@ -222,8 +223,8 @@ void check() {
   }
 
   goal_hue = goal_color[goal];
-  zero_index = 0;
-  draw(64 * 255, goal_hue);
+  zero_index = 16;
+  draw(8 * 255, goal_hue);
 
   if (emg1_int_value < (emg1_min + (emg1_max - emg1_min) / 3)) {  // Зелёный
     hue_1 = 100;
@@ -347,6 +348,8 @@ void setup() {
     calibration();
     saturation = 255;
   }
+  hue_1 = -1;
+  hue_2 = -1;
 }
 
 void loop() {
@@ -354,7 +357,7 @@ void loop() {
   timer();
   fill();
   check();
-  check_win();
+  // check_win();
   animation();
   FastLED.show();
 }
