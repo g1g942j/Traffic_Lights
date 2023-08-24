@@ -17,8 +17,8 @@ EMG_Raw_Processing emg2_int;
 CRGB leds[NUM_LEDS];
 
 int i, j, saturation, zero_index, goal, goal_hue, calibration_start_time, check_state;
-int hue_1, data_count_1, state_1, last_state_1, current_state_1, first_player_current_state, timer_first_player_start_time, last_check_first_player_position, first_player_start_time, fill_first_player_start_time, first_player_fill_state, fill_first_player_last_state, first_player_second_count, first_player_check_position;
-int hue_2, data_count_2, state_2, last_state_2, current_state_2, second_player_current_state, timer_second_player_start_time, last_check_second_player_position, second_player_start_time, fill_second_player_start_time, second_player_fill_state, fill_second_player_last_state, second_player_second_count, second_player_check_position;
+int hue_1, data_count_1, state_1, last_state_1, current_state_1, first_player_current_state, first_player_state, first_player_last_state, timer_first_player_start_time, last_check_first_player_position, first_player_start_time, fill_first_player_start_time, first_player_fill_state, first_player_fill_last_state, first_player_second_count, first_player_check_position, first_player_last_check_position;
+int hue_2, data_count_2, state_2, last_state_2, current_state_2, second_player_current_state, second_player_state, second_player_last_state, timer_second_player_start_time, last_check_second_player_position, second_player_start_time, fill_second_player_start_time, second_player_fill_state, second_player_fill_last_state, second_player_second_count, second_player_check_position, second_player_last_check_position;
 int animation_step = 100;
 int goal_time = 3;
 int calibration_time = 5 * 1000;
@@ -54,7 +54,7 @@ void get_data() {
     if (emg1_int.process(emg1_value, emg1_int_value)) {
     }
   }
-  if (emg2.read(emg1_value)) {
+  if (emg2.read(emg2_value)) {
     if (emg2_int.process(emg2_value, emg2_int_value)) {
     }
   }
@@ -120,13 +120,23 @@ void fill() {
   }
 
   first_player_fill_last_state = first_player_fill_state;
-  first_player_fill_state = map((millis() - fill_first_player_start_time), 0, duration, 8 * 255, 2 * 8 * 255);
+  first_player_fill_state = map((millis() - fill_first_player_start_time), 0, duration, 8 * 255, 16 * 255);
+  if ((millis() - timer_first_player_start_time) >= duration) {
+    first_player_win = true;
+    get_win = true;
+  }
   if ((millis() - timer_first_player_start_time) < duration && first_player_last_state != first_player_state) {
+    zero_index = 8;
     draw(first_player_fill_state, hue_1);
   }
   second_player_fill_last_state = second_player_fill_state;
   second_player_fill_state = map((millis() - fill_second_player_start_time), 0, duration, 48 * 255, 56 * 255);
+  if ((millis() - timer_second_player_start_time) >= duration) {
+    first_player_win = false;
+    get_win = true;
+  }
   if ((millis() - timer_second_player_start_time) < duration && second_player_last_state != second_player_state) {
+    zero_index = 48;
     draw(second_player_fill_state, hue_2);
   }
 
@@ -143,14 +153,16 @@ void animation() {
 
   if (first_player_animation_doing == false) {
     first_player_start_time = millis();
-    first_player_state = map(data_1 / data_count_1, emg1_min, emg1_max, 0, 8 * 255);
-    data_1 = data_count_1 = 0;
+    first_player_state = map(sum_data_1 / data_count_1, emg1_min, emg1_max, 0, 8 * 255);
+    sum_data_1 = 0;
+    data_count_1 = 0;
     first_player_animation_doing = true;
   }
   if (second_player_animation_doing == false) {
     second_player_start_time = millis();
-    second_player_state = map(data_2 / data_count_2, emg2_min, emg2_max, 56 * 255, 64 * 255);
-    data_2 = data_count_2 = 0;
+    second_player_state = map(sum_data_2 / data_count_2, emg2_min, emg2_max, 56 * 255, 64 * 255);
+    sum_data_2 = 0;
+    data_count_2 = 0;
     second_player_animation_doing = true;
   }
 
@@ -167,11 +179,15 @@ void animation() {
     second_player_current_state = map((millis() - second_player_start_time), 0, animation_step, second_player_last_state, second_player_state);
 
     if (first_player_last_state != first_player_state) {
+      zero_index = 0;
+      Serial.println("FIRST PLAYER.");
       draw(first_player_current_state, hue_1);
     } else {
       first_player_animation_doing = false;
     }
     if (second_player_last_state != second_player_state) {
+      zero_index = 55;
+      Serial.println("SECOND PLAYER.");
       draw(second_player_current_state, hue_2);
     } else {
       second_player_animation_doing = false;
@@ -180,14 +196,15 @@ void animation() {
 }
 
 void check() {
-  zero_index = 56;
   saturation = 255;
   check_win();
 
   if (first_player_second_count < goal_time) {
+    zero_index = 0;
     draw(0, 0);
   }
   if (second_player_second_count < goal_time) {
+    zero_index = 56;
     draw(0, 0);  // Возможно здесь ошибка!
   }
 
@@ -205,8 +222,8 @@ void check() {
   }
 
   goal_hue = goal_color[goal];
-  zero_index = 16;
-  draw(48 * 255, goal_hue);
+  zero_index = 0;
+  draw(64 * 255, goal_hue);
 
   if (emg1_int_value < (emg1_min + (emg1_max - emg1_min) / 3)) {  // Зелёный
     hue_1 = 100;
@@ -302,12 +319,14 @@ void check_win() {
       }
     }
   }
-  FastLED.show();
-  FastLED.delay(10 * 1000);
-  for (i = 0; i <= 63; i++) {
-    leds[reverse(i)] = CHSV(0, 0, 0);
+  if (get_win == true) {
+    FastLED.show();
+    FastLED.delay(10 * 1000);
+    for (i = 0; i <= 63; i++) {
+      leds[reverse(i)] = CHSV(0, 0, 0);
+    }
+    get_win = false;
   }
-  get_win = false;
 }
 
 void setup() {
@@ -318,6 +337,7 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(10);
   emg1.connect(0);
+  emg2.connect(0);
 
   if (emg1.connected() && emg2.connected()) {
     emg1.start();
@@ -333,8 +353,8 @@ void loop() {
   get_data();
   timer();
   fill();
-  // FastLED.show();
   check();
   check_win();
   animation();
+  FastLED.show();
 }
