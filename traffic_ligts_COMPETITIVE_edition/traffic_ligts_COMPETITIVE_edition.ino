@@ -23,7 +23,7 @@ int animation_step = 100;
 int goal_time = 3;
 int calibration_time = 5 * 1000;
 int duration = goal_time * 1000;
-int one_goal_time = 30;
+int one_goal_time = 20;
 unsigned long timer_start_goal, goal_second_counter, calibration_start_time, timer_first_player_start_time, timer_second_player_start_time, first_player_start_time, second_player_start_time, first_player_second_count, second_player_second_count, yellow_counter_first_player, yellow_counter_second_player;
 float emg1_value, emg1_int_value, emg2_value, emg2_int_value, sum_data_1, sum_data_2;
 float emg1_min = 999999999999;
@@ -144,10 +144,10 @@ void fill() {
     draw(second_player_fill_state, hue_2);
   }
 
-  if (goal_color[goal] != hue_1) {
+  if (goal_color[goal] != hue_1 || (millis() - timer_first_player_start_time) > duration) {
     first_player_fill_doing = false;
   }
-  if (goal_color[goal] != hue_2) {
+  if (goal_color[goal] != hue_2 || (millis() - timer_second_player_start_time) > duration) {
     second_player_fill_doing = false;
   }
 }
@@ -295,14 +295,14 @@ void check_win() {
   if (check_state == false) {
     get_win = false;  // НЕ НАДЁЖНО
   }
-  if ((first_player_second_count >= goal_time && goal_color[goal] == hue_1)) {
+  if ((first_player_second_count >= goal_time && goal_color[goal] == hue_1) && get_win == false) {
     yellow_counter_first_player = 0;
     check_state = false;
     first_player_win = true;
     count_fail_win++;
     get_win = true;
   }
-  if ((second_player_second_count >= goal_time && goal_color[goal] == hue_2)) {
+  if ((second_player_second_count >= goal_time && goal_color[goal] == hue_2) && get_win == false) {
     yellow_counter_second_player = 0;
     check_state = false;
     first_player_win = false;
