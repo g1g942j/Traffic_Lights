@@ -40,6 +40,7 @@ bool first_player_win = false;
 bool get_win = false;
 
 int goal_color[3]{ 0, 60, 100 };
+int smile[14]{ 13, 17, 18, 19, 20, 22, 30, 38, 41, 42, 43, 44, 46, 53 };
 int first[10]{ 18, 25, 32, 33, 34, 35, 36, 37, 38, 39 };
 int second[17]{ 14, 9, 10, 16, 21, 22, 24, 28, 30, 32, 35, 38, 40, 42, 46, 49, 54 };
 
@@ -123,7 +124,7 @@ void fill() {
 
   first_player_fill_last_state = first_player_fill_state;
   first_player_fill_state = map((millis() - fill_first_player_start_time), 0, duration, 0, 8 * 255);
-  // if ((millis() - timer_first_player_start_time) > duration && timer_first_player_start_time != 0) {
+  // if ((millis() - timer_first_player_start_time) > duration && timer_first_player_start_time != 0 && get_win == false) {
   //   first_player_win = true;
   //   count_fail_win++;
   //   get_win = true;
@@ -134,7 +135,7 @@ void fill() {
   }
   second_player_fill_last_state = second_player_fill_state;
   second_player_fill_state = map((millis() - fill_second_player_start_time), 0, duration, 0, 8 * 255);
-  // if ((millis() - timer_second_player_start_time) > duration && timer_second_player_start_time != 0) {
+  // if ((millis() - timer_second_player_start_time) > duration && timer_second_player_start_time != 0 && get_win == false) {
   //   first_player_win = false;
   //   count_fail_win++;
   //   get_win = true;
@@ -145,9 +146,11 @@ void fill() {
   }
 
   if (goal_color[goal] != hue_1 || (millis() - timer_first_player_start_time) > duration) {
+    timer_first_player_start_time = millis();
     first_player_fill_doing = false;
   }
   if (goal_color[goal] != hue_2 || (millis() - timer_second_player_start_time) > duration) {
+    timer_second_player_start_time = millis();
     second_player_fill_doing = false;
   }
 }
@@ -294,6 +297,19 @@ void check_win() {
   saturation = 255;
   if (check_state == false) {
     get_win = false;  // НЕ НАДЁЖНО
+  }
+  if ((first_player_second_count >= goal_time && goal_color[goal] == hue_1) && (second_player_second_count >= goal_time && goal_color[goal] == hue_2) && get_win == false) {
+    get_win = true;
+    for (i = 0; i <= 63; i++) {
+      for (j = 0; j <= 13; j++) {
+        if (i == smile[j]) {
+          leds[reverse(i)] = CHSV(60, 0, 128);
+          break;
+        } else {
+          leds[reverse(i)] = CHSV(0, 0, 0);
+        }
+      }
+    }
   }
   if ((first_player_second_count >= goal_time && goal_color[goal] == hue_1) && get_win == false) {
     yellow_counter_first_player = 0;
